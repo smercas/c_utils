@@ -6,9 +6,16 @@
 #include <stdio.h>                //scanf, printf
 #include "is_regular_file.h"      //is_regular_file
 
-void recieve_input_file(int32_t c, char** v, char *path) {
-  if (c >= 2) {
-    strcpy(path, v[1]);
+void recieve_input_file(int32_t c, char** v, char *path, int32_t o) {
+  while (o <= 0) {
+    printf("Recieved optional argument number (%d) should be at least 1. Insert another one here: ", o);
+    scanf("%d", &o);
+  }
+  if (c > o) {
+    strcpy(path, v[o]);
+  }
+  else {
+    strcpy(path, "");
   }
   int32_t r = is_regular_file(path);
 

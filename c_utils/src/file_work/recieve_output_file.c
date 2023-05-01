@@ -12,10 +12,14 @@
 //#include <limits.h>
 
 
-int32_t recieve_output_file(int32_t c, char** v, char *path) {
+int32_t recieve_output_file(int32_t c, char** v, char *path, int32_t o) {
   char aux[PATH_MAX];
-  if (c >= 3) {
-    strcpy(aux, v[2]);
+  while (o <= 0) {
+    printf("Recieved optional argument number (%d) should be at least 1. Insert another one here: ", o);
+    scanf("%d", &o);
+  }
+  if (c > o) {
+    strcpy(aux, v[o]);
   }
   else {
     strcpy(aux, "");
