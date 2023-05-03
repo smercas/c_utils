@@ -5,10 +5,11 @@ DEBUGINFO = -g3
 CFLAGS = $(WARNINGS) $(DEBUGINFO) $(OPTIMIZATIONS)
 USEDLIBRARIES = -lc -lc_utils
 
-CUTILSPATH = /home/user/Documents/c_utils # change this to where you've placed the c_utils shared library
+CUTILSPATH = /home/stefan/Documents/c_utils
+# change this to where you've placed the c_utils shared library
 
-IFLAGS = -I $(CUTILSPATH)/src
-LFLAGS = -L $(CUTILSPATH)/lib
+IFLAGS = -I$(CUTILSPATH)/src
+LFLAGS = -L$(CUTILSPATH)/lib
 WLFLAGS = -Wl,-rpath=$(CUTILSPATH)/lib
 
 SRC = src
@@ -59,6 +60,9 @@ $(TEST):
 	mkdir $@
 
 $(TESTBIN): $(TEST)
+	mkdir $@
+
+$(TESTSRC): $(TEST)
 	mkdir $@
 
 runtest: $(BIN) $(TESTBIN) $(TESTBINARIES)

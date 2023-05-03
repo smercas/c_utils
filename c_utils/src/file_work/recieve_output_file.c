@@ -2,116 +2,83 @@
 
 #include <stdint.h>               //int32_t
 #include <linux/limits.h>         //PATH_MAX
-#include <string.h>               //strcmp, strcpy
 #include <unistd.h>               //access
-#include <stdio.h>                //printf, scanf
+#include <string.h>               //strcpy
+#include <stdio.h>                //fprintf, stderr
 #include <stdlib.h>               //realpath
 #include <libgen.h>               //dirname
-#include "is_regular_file.h"      //isRegularFile
+#include "is_regular_file.h"      //is_regular_file
 
-//#include <limits.h>
+#define rof_ii_err { fprintf(stderr, "%s: Recieved optional argument number should be an integer with values between 1 and %d when it's %d.\n", __func__, c - 1, o); return -1; }
+#define rof_r_err { fprintf(stderr, "%s: Error encountered while solving the path of '%s'.\n", __func__, v[o]); return -2; }
+#define rof_irf_err { fprintf(stderr, "%s: Error encountered while trying to find out if %s is a regular file or not.\n", __func__, path); return -3; }
+#define rof_ip_err {\
+  fprintf(stderr, "%s: The specified output file (%s):\n", __func__, path);\
+  if (!e) {\
+    fprintf(stderr, "\t-does not exist\n");\
+  }\
+  if (!w) {\
+    fprintf(stderr, "\t-does not have write permissions\n");\
+  }\
+  if (!f) {\
+    fprintf(stderr, "\t-is not a regular file\n");\
+  }\
+  if (!d) {\
+    fprintf(stderr, "\t-can't be accessed, along with all the other files in the '%s' directory\n", dir);\
+  }\
+  return -4;\
+}
 
-
+//  -1 - invalid index
+//  -2 - realpath
+//  -3 - is_regular_file
+//  -4 - invalid path
 int32_t recieve_output_file(int32_t c, char** v, char *path, int32_t o) {
-  char aux[PATH_MAX];
-  while (o <= 0) {
-    printf("Recieved optional argument number (%d) should be at least 1. Insert another one here: ", o);
-    scanf("%d", &o);
-  }
-  if (c > o) {
-    strcpy(aux, v[o]);
-  }
-  else {
-    strcpy(aux, "");
-  }
+  if (o <= 0 || o >= c) rof_ii_err
+  if (realpath(v[o], path) == NULL) rof_r_err
+  char dir[PATH_MAX];
+  strcpy(dir, path);
+  dirname(dir);
 
-/* i'm ashamed of myself
-  //n : _ e w r d
-  //1 : 0 0 0 0 0 : get another       +----------+-------+-------+-------+-------+
-  //2 : 0 0 0 0 1 : get another       |          |  _  e |  _ !e | !_ !e | !_  e |  //2 is a dumb case, "" is nothing, expands to nothing, but the directory in which "" resides has writing privileges, apparently
-  //3 : 0 0 0 1 0 : impossible        +----------+-------+-------+-------+-------+
-  //4 : 0 0 0 1 1 : impossible        |  w  r  d |   o   |       |       |       |
-  //5 : 0 0 1 0 0 : impossible        +----------+-------+-------+-------+-------+
-  //6 : 0 0 1 0 1 : impossible        |  w  r !d |   g   |       |       |       |
-  //7 : 0 0 1 1 0 : impossible        +----------+-------+-------+-------+-------+
-  //8 : 0 0 1 1 1 : impossible        |  w !r !d |   g   |       |       |       |
-  //9 : 0 1 0 0 0 : impossible        +----------+-------+-------+-------+-------+
-  //10: 0 1 0 0 1 : impossible        |  w !r  d |   g   |       |       |       |
-  //11: 0 1 0 1 0 : impossible        +----------+-------+-------+-------+-------+
-  //12: 0 1 0 1 1 : impossible        | !w !r  d |   g   |   c   |   g   |       |
-  //13: 0 1 1 0 0 : impossible        +----------+-------+-------+-------+-------+
-  //14: 0 1 1 0 1 : impossible        | !w !r !d |   g   |   g   |   g   |       |
-  //15: 0 1 1 1 0 : impossible        +----------+-------+-------+-------+-------+
-  //16: 0 1 1 1 1 : impossible        | !w  r !d |   g   |       |       |       |
-  //17: 1 0 0 0 0 : get another       +----------+-------+-------+-------+-------+
-  //18: 1 0 0 0 1 : create one        | !w  r  d |   g   |       |       |       |
-  //19: 1 0 0 1 0 : impossible        +----------+-------+-------+-------+-------+
-  //20: 1 0 0 1 1 : impossible
-  //21: 1 0 1 0 0 : impossible
-  //22: 1 0 1 0 1 : impossible
-  //23: 1 0 1 1 0 : impossible
-  //24: 1 0 1 1 1 : impossible
-  //25: 1 1 0 0 0 : get another
-  //26: 1 1 0 0 1 : get another
-  //27: 1 1 0 1 0 : get another
-  //28: 1 1 0 1 1 : get another
-  //29: 1 1 1 0 0 : get another
-  //30: 1 1 1 0 1 : get another
-  //31: 1 1 1 1 0 : get another
-  //32: 1 1 1 1 1 : open
+  int32_t e = (access(path, F_OK) == 0);
+  int32_t w = (access(path, W_OK) == 0);
+  int32_t f = is_regular_file(path);
+  int32_t d = (access(dir, W_OK) == 0);
+
+/*  cases
+cases where a new file should be created:
+  e w f d
+  0 0 0 1
+
+cases where a file should be opened:
+  e w f d
+  1 1 1 1
+
+bad cases:
+  e w f d
+  0 0 0 0
+  1 0 0 0
+  1 0 0 1
+  1 0 1 0
+  1 0 1 1
+  1 1 0 0
+  1 1 0 1
+  1 1 1 0
+
+the other cases are impossible
 */
-  
-  if (realpath(aux, path) == NULL) {
-    strcpy(path, aux);
-  }
-  
-  int32_t _ = (strcmp(path, "") != 0);            // path is valid
-  int32_t e = (access(path, F_OK) == 0);          // file exists
-  int32_t w = (access(path, W_OK) == 0);          // can write into file
-  int32_t r = is_regular_file(path);              // is a regular file
-  strcpy(aux, path);
-  int32_t d = (access(dirname(aux), W_OK) == 0); // the directory where the file is has writing privileges
 
-  while ((!e && !w && !r && !(d && _)) || (_ && e && !(w && r && d))) {
-    if (!_) {
-      printf("Recieved path is '', stop playing.\n");
-    }
-    if (_) {
-      printf("Recieved path (%s):\n", path);
-      if (!e) {
-        printf("\t-does not exist\n");
-      }
-      if (!w) {
-        printf("\t-does not have write permmissions\n");
-      }
-      if (!r) {
-        printf("\t-is not a regular file\n");
-      }
-      if (!d) {
-        printf("\t-can't be modified, along with all the other files in the '%s' directory\n", aux);
-      }
-    }
-    printf("Insert a file name here: ");
-    scanf("%s", aux);
-
-    if (realpath(aux, path) == NULL) {
-      strcpy(path, aux);
-    }
-
-    _ = (strcmp(path, "") != 0);
-    e = (access(path, F_OK) == 0);
-    w = (access(path, W_OK) == 0);
-    r = is_regular_file(path);
-    strcpy(aux, path);
-    d = (access(dirname(aux), W_OK) == 0);
-  }
-  if (_ && !e && !w && !r && d) {
-    return 0; // file should be created
-  }
-  else if (_ && e && w && r && d) {
-    return 1; // file should be opened
+  if (f < 0) rof_irf_err
+  if (!(e && w && f && d) && !(!e && !w && !f && d)) rof_ip_err
+  else if (!e && !w && !f && d) {
+    return 0;   //file should be created
   }
   else {
-    return -1; // impossible case
+    return 1;   //file should be opened
   }
 }
+
+#undef rof_ii_err
+#undef rof_r_err
+#undef rof_irf_err
+#undef rof_ip_err
